@@ -1,0 +1,65 @@
+name: Build and Release SafeCrypt
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write  # Ensure the GITHUB_TOKEN has write permissions for releases
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        goos: [linux, windows, darwin, freebsd, netbsd, openbsd]
+        goarch: [amd64, 386, arm, arm64]
+        exclude:
+          - goos: darwin
+            goarch: 386
+          - goos: darwin
+            goarch: arm
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: 1.23
+
+      - name: Build the binary
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+        run: |
+          if [ "${{ matrix.goos }}" = "windows" ]; then
+            go build -o safecrypt-${{ matrix.goos }}-${{ matrix.goarch }}.exe
+          else
+            go build -o safecrypt-${{ matrix.goos }}-${{ matrix.goarch }}
+          fi
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: safecrypt-${{ matrix.goos }}-${{ matrix.goarch }}
+          path: ./safecrypt-${{ matrix.goos }}-${{ matrix.goarch }}*
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download all build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: ./builds
+        continue-on-error: true
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ./builds/**/*  # Match files in subdirectories
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
