@@ -1,6 +1,17 @@
 # SafeCrypt
 
-SafeCrypt is a command-line tool for securely encrypting and decrypting folders using AES-256-GCM encryption. The tool leverages Argon2 for key derivation to ensure strong encryption and secure password-based key management. The encrypted files can be stored either as individual files or within a ZIP container for easy distribution.
+SafeCrypt is a command-line tool for securely encrypting and decrypting files and folders using AES-256-GCM encryption. The tool leverages Argon2 for key derivation to ensure strong encryption and secure password-based key management. The encrypted files can be stored either as individual files or within a ZIP container for easy distribution.
+
+
+## Securely Sending Files via Communication Tools
+
+With SafeCrypt, you can securely send and attach your important and confidential files through email, WhatsApp, Telegram, and other communication tools. SafeCrypt allows you to encrypt your files before sending, so you don't have to worry about the quality of the end-to-end encryption provided by these communication services.
+
+### Important Notes on Sharing Keys:
+- **Offline Key Sharing**: To decrypt the files, the receiver needs the encryption key file. However, for security purposes, **do not send the encryption key with the encrypted files** over the same communication channel. Instead, share the encryption key via offline methods such as a USB stick or other secure physical means.
+- **Encryption Key Security**: The encryption key is critical for decryption, and without it, the recipient will not be able to access the encrypted files. Protect this key and share it carefully.
+
+By following this approach, you can ensure that your files remain secure even if the communication tool's encryption is compromised, but always remember to keep the encryption key and encrypted files separate.
 
 ## Features
 
@@ -39,18 +50,34 @@ This will generate a binary named `safecrypt` in the current directory.
 
 ```bash
 Usage:
-  ./safecrypt --cmd <encrypt|decrypt> --input <folder_path|zip_path> [options]
+  ./safecrypt --cmd <encrypt|decrypt> --input <file_path|folder_path|zip_path> [options]
 
 Options:
-  --cmd <encrypt|decrypt>       Specify whether to encrypt or decrypt the input.
-  --input <folder_path|zip_path> The folder or ZIP file to encrypt or decrypt.
-  --keypath <keyfile_path>      Path to the key file (password-protected).
-  --output <output_path>        Output folder or ZIP file for encrypted/decrypted files (optional).
-  --usezip                      Store encrypted files in a ZIP container.
-  --help, -h                    Display help message.
+  --cmd <encrypt|decrypt>                   Specify whether to encrypt or decrypt the input.
+  --input <file_path|folder_path|zip_path>  The file, folder, or ZIP file to encrypt or decrypt.
+  --keypath <keyfile_path>                  Path to the key file (password-protected).
+  --output <output_path>                    Output file, folder, or ZIP file for encrypted/decrypted files (optional).
+  --usezip                                  Store encrypted files in a ZIP container.
+  --help, -h                                Display help message.
 ```
 
 ### Examples
+
+#### Encrypt a single file
+
+```bash
+./safecrypt --cmd encrypt --input /path/to/file.txt --keypath /path/to/keyfile
+```
+
+This will encrypt the file and generate an `.enc` encrypted version.
+
+#### Decrypt a single file
+
+```bash
+./safecrypt --cmd decrypt --input /path/to/file.txt.enc --keypath /path/to/keyfile
+```
+
+This will decrypt the previously encrypted `.enc` file.
 
 #### Encrypt a folder
 
@@ -58,7 +85,7 @@ Options:
 ./safecrypt --cmd encrypt --input /path/to/folder --keypath /path/to/keyfile
 ```
 
-This command will encrypt all files in the folder, generating `.enc` encrypted files.
+This command will encrypt all files in the folder, generating `.enc` encrypted files for each file.
 
 #### Decrypt a folder
 
@@ -105,6 +132,7 @@ To use an existing key for encryption or decryption, provide the path to the key
 - **Strong Password**: Always use a strong password when encrypting your key files.
 - **Key Protection**: Keep your key file secure, as it is required for decrypting the data.
 - **Encryption Algorithm**: AES-GCM provides authenticated encryption, ensuring both confidentiality and integrity of your files.
+- **Do Not Share Keys Online**: Never store or send your encryption key through the same communication channel as the encrypted files.
 
 ## License
 
