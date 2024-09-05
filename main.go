@@ -12,6 +12,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"syscall"
 
@@ -39,14 +40,14 @@ func about() {
 func usage() {
 	about()
 	fmt.Println("\nUsage:")
-	fmt.Println("  safecrypt --cmd <encrypt|decrypt> --input <folder_path|zip_path> [options]")
+	fmt.Println("  safecrypt --cmd <encrypt|decrypt> --input <file_path|folder_path|zip_path> [options]")
 	fmt.Println("\nOptions:")
-	fmt.Println("  --cmd <encrypt|decrypt>     Specify whether to encrypt or decrypt the input.")
-	fmt.Println("  --input <folder_path|zip_path>  The folder or zip file to encrypt or decrypt.")
-	fmt.Println("  --keypath <keyfile_path>    Path to the key file (password protected).")
-	fmt.Println("  --output <output_path>      Output folder or zip file for encrypted/decrypted files (optional).")
-	fmt.Println("  --usezip                    Store encrypted files in a zip container.")
-	fmt.Println("  --help, -h                  Display help message.")
+	fmt.Println("  --cmd <encrypt|decrypt>                   Specify whether to encrypt or decrypt the input.")
+	fmt.Println("  --input <file_path|folder_path|zip_path>  The file, folder, or zip file to encrypt or decrypt.")
+	fmt.Println("  --keypath <keyfile_path>                  Path to the key file (password protected).")
+	fmt.Println("  --output <output_path>                    Output file, folder, or zip file for encrypted/decrypted files (optional).")
+	fmt.Println("  --usezip                                  Store encrypted files in a zip container.")
+	fmt.Println("  --help, -h                                Display help message.")
 }
 
 func deriveKey(password, salt []byte) []byte {
@@ -507,11 +508,21 @@ func isZipFile(inputPath string) (bool, error) {
 	return false, nil
 }
 
+func cleanInputPath(inputPath string) string {
+	if runtime.GOOS == "windows" {
+		// For Windows, trim all trailing backslashes
+		return strings.TrimRight(inputPath, "\\")
+	} else {
+		// For Unix-like systems, trim all trailing forward slashes
+		return strings.TrimRight(inputPath, "/")
+	}
+}
+
 func main() {
 	command := flag.String("cmd", "encrypt", "encrypt or decrypt")
 	keyPath := flag.String("keypath", "", "path to key file")
-	inputPath := flag.String("input", "", "folder or zip file to encrypt/decrypt")
-	outputDir := flag.String("output", "", "output directory or zip file")
+	inputPath := flag.String("input", "", "file, folder, or zip file to encrypt/decrypt")
+	outputDir := flag.String("output", "", "output file, folder, or zip file")
 	useZip := flag.Bool("usezip", false, "store encrypted files in a zip container")
 	showHelp := flag.Bool("help", false, "display help message")
 
@@ -528,6 +539,9 @@ func main() {
 		os.Exit(1)
 	}
 
+	// Clean input path to remove any trailing slashes
+	cleanInputPath := cleanInputPath(*inputPath)
+
 	isEncrypt := (*command == "encrypt")
 
 	// Get the encryption/decryption key
@@ -537,49 +551,72 @@ func main() {
 		os.Exit(1)
 	}
 
-	// Set default output directory if not provided
+	// Set default output directory or file if not provided
 	if *outputDir == "" {
 		if isEncrypt {
-			*outputDir = *inputPath + outputExtEnc
+			fileInfo, err := os.Stat(cleanInputPath)
+			if err != nil {
+				fmt.Printf("Error: Failed to access input path - %s\n", err)
+				os.Exit(1)
+			}
+
+			if fileInfo.IsDir() {
+				*outputDir = cleanInputPath + outputExtEnc
+			} else {
+				// For files, explicitly append .enc to the output file path
+				*outputDir = cleanInputPath + outputExtEnc
+			}
 		} else {
-			*outputDir = strings.TrimSuffix(*inputPath, outputExtEnc) + outputExtDec
+			*outputDir = strings.TrimSuffix(cleanInputPath, outputExtEnc) + outputExtDec
 		}
 	}
 
-	// Encryption/Decryption
-	if isEncrypt {
-		if *useZip {
-			fmt.Printf("Encrypting input '%s' into a zip container...\n", *inputPath)
-			err = processFilesToZip(*inputPath, *outputDir+".zip", key)
-		} else {
-			fmt.Printf("Encrypting folder '%s'...\n", *inputPath)
-			err = processFiles(*inputPath, *outputDir, key, true)
-		}
-	} else if *command == "decrypt" {
-
-		isZip, err := isZipFile(*inputPath)
-		if err != nil {
-			fmt.Printf("Error detecting ZIP file: %s\n", err)
-			os.Exit(1)
-		}
-
-		if isZip {
-			fmt.Printf("Decrypting zip file '%s'...\n", *inputPath)
-			err = decryptFilesFromZip(*inputPath, *outputDir, key)
-		} else {
-			fmt.Printf("Decrypting folder '%s'...\n", *inputPath)
-			err = processFiles(*inputPath, *outputDir, key, false)
-		}
-
-		if err != nil {
-			fmt.Printf("Error: %s\n", err)
-			os.Exit(1)
-		}
-
-	} else {
-		fmt.Println("Invalid command. Use 'encrypt' or 'decrypt'.")
-		flag.Usage()
+	// Check if the input path is a file or directory
+	fileInfo, err := os.Stat(cleanInputPath)
+	if err != nil {
+		fmt.Printf("Error: Failed to access input path - %s\n", err)
 		os.Exit(1)
+	}
+
+	if fileInfo.IsDir() {
+		// Handle encryption or decryption for directories
+		if isEncrypt {
+			if *useZip {
+				fmt.Printf("Encrypting folder '%s' into a zip container...\n", cleanInputPath)
+				err = processFilesToZip(cleanInputPath, *outputDir+".zip", key)
+			} else {
+				fmt.Printf("Encrypting folder '%s'...\n", cleanInputPath)
+				err = processFiles(cleanInputPath, *outputDir, key, true)
+			}
+		} else {
+			fmt.Printf("Decrypting folder '%s'...\n", cleanInputPath)
+			err = processFiles(cleanInputPath, *outputDir, key, false)
+		}
+	} else {
+		// Handle single file encryption/decryption
+		if isEncrypt {
+			fmt.Printf("Encrypting file '%s'...\n", cleanInputPath)
+			err = encryptFile(cleanInputPath, *outputDir, key)
+		} else {
+			// Check if the input file is a zip file for decryption
+			var isZip bool
+			isZip, err = isZipFile(cleanInputPath)
+			if err != nil {
+				fmt.Printf("Error detecting ZIP file: %s\n", err)
+				os.Exit(1)
+			}
+
+			if isZip {
+				fmt.Printf("Decrypting zip file '%s'...\n", cleanInputPath)
+				err = decryptFilesFromZip(cleanInputPath, *outputDir, key)
+			} else {
+				fmt.Printf("Decrypting file '%s'...\n", cleanInputPath)
+				if strings.HasSuffix(cleanInputPath, outputExtEnc) {
+					*outputDir = strings.TrimSuffix(cleanInputPath, outputExtEnc)
+				}
+				err = decryptFile(cleanInputPath, *outputDir, key)
+			}
+		}
 	}
 
 	if err != nil {
