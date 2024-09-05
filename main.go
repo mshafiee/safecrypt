@@ -162,7 +162,41 @@ func getKey(keyPath string, isEncrypt bool) ([]byte, error) {
 }
 
 func generateKeyFile(keyFilePath string) ([]byte, error) {
-	// Generate a new key
+	// Check if the key file already exists
+	if _, err := os.Stat(keyFilePath); err == nil {
+		// File exists, verify if it's a valid base64 encoded key
+		existingKeyBase64, err := ioutil.ReadFile(keyFilePath)
+		if err != nil {
+			return nil, errors.New("failed to read existing key file")
+		}
+
+		// Decode the existing key from base64
+		encryptedKey, err := base64.StdEncoding.DecodeString(string(existingKeyBase64))
+		if err != nil {
+			return nil, errors.New("existing key file is not in base64 format or is corrupted")
+		}
+
+		// Prompt for password to decrypt the key
+		fmt.Println("Using existing key file. Please enter the password for key decryption.")
+		password, err := promptPassword()
+		if err != nil {
+			return nil, errors.New("failed to get password for key decryption")
+		}
+
+		// Decrypt the key using the provided password
+		key, err := decryptKey(encryptedKey, password)
+		if err != nil {
+			return nil, errors.New("failed to decrypt existing key file")
+		}
+
+		fmt.Printf("Successfully decrypted and using existing key file: %s\n", keyFilePath)
+		return key, nil // Return the decrypted key
+	} else if !os.IsNotExist(err) {
+		// Some other error occurred while checking if the file exists
+		return nil, errors.New("failed to check if key file exists")
+	}
+
+	// If the file doesn't exist, proceed with generating a new key
 	key := make([]byte, keySize)
 	if _, err := rand.Read(key); err != nil {
 		return nil, errors.New("failed to generate encryption key")
