@@ -1,6 +1,6 @@
 # SafeCrypt
 
-SafeCrypt is a command-line tool for securely encrypting and decrypting folders using AES-256-GCM encryption. The tool leverages Argon2 for key derivation to ensure strong encryption and secure password-based key management. The encrypted files can be stored either as individual files or within a ZIP container for easy distribution.
+SafeCrypt is a command-line tool for securely encrypting and decrypting files and folders using AES-256-GCM encryption. The tool leverages Argon2 for key derivation to ensure strong encryption and secure password-based key management. The encrypted files can be stored either as individual files or within a ZIP container for easy distribution.
 
 ## Features
 
@@ -39,18 +39,34 @@ This will generate a binary named `safecrypt` in the current directory.
 
 ```bash
 Usage:
-  ./safecrypt --cmd <encrypt|decrypt> --input <folder_path|zip_path> [options]
+  ./safecrypt --cmd <encrypt|decrypt> --input <file_path|folder_path|zip_path> [options]
 
 Options:
-  --cmd <encrypt|decrypt>       Specify whether to encrypt or decrypt the input.
-  --input <folder_path|zip_path> The folder or ZIP file to encrypt or decrypt.
-  --keypath <keyfile_path>      Path to the key file (password-protected).
-  --output <output_path>        Output folder or ZIP file for encrypted/decrypted files (optional).
-  --usezip                      Store encrypted files in a ZIP container.
-  --help, -h                    Display help message.
+  --cmd <encrypt|decrypt>                   Specify whether to encrypt or decrypt the input.
+  --input <file_path|folder_path|zip_path>  The file, folder, or ZIP file to encrypt or decrypt.
+  --keypath <keyfile_path>                  Path to the key file (password-protected).
+  --output <output_path>                    Output file, folder, or ZIP file for encrypted/decrypted files (optional).
+  --usezip                                  Store encrypted files in a ZIP container.
+  --help, -h                                Display help message.
 ```
 
 ### Examples
+
+#### Encrypt a single file
+
+```bash
+./safecrypt --cmd encrypt --input /path/to/file.txt --keypath /path/to/keyfile
+```
+
+This will encrypt the file and generate an `.enc` encrypted version.
+
+#### Decrypt a single file
+
+```bash
+./safecrypt --cmd decrypt --input /path/to/file.txt.enc --keypath /path/to/keyfile
+```
+
+This will decrypt the previously encrypted `.enc` file.
 
 #### Encrypt a folder
 
@@ -58,7 +74,7 @@ Options:
 ./safecrypt --cmd encrypt --input /path/to/folder --keypath /path/to/keyfile
 ```
 
-This command will encrypt all files in the folder, generating `.enc` encrypted files.
+This command will encrypt all files in the folder, generating `.enc` encrypted files for each file.
 
 #### Decrypt a folder
 
